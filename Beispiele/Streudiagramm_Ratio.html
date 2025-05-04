@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scatter Plot</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <canvas id="scatterChart" width="800" height="400"></canvas>
+    <script>
+        fetch('./data/data.csv')
+            .then(response => response.text())
+            .then(csvText => {
+                const rows = csvText.split('\n').slice(1); // 跳过标题行
+                const data = rows.map(row => {
+                    const columns = row.split(',');
+                    return {
+                        country: columns[0],
+                        tagGNI: parseFloat(columns[20]), // TagGNI 列
+                        costPercentage: parseFloat(columns[21]), // Vergleich 列
+                        cost: parseFloat(columns[2]) // Cost 列
+                    };
+                }).filter(item => !isNaN(item.tagGNI) && !isNaN(item.costPercentage) && !isNaN(item.cost)); // 过滤无效数据
+
+                // Streudiagramm
+                const scatterData = data.map(item => ({
+                    x: item.tagGNI,
+                    y: item.costPercentage,
+                    label: item.country,
+                    cost: item.cost
+                }));
+
+                const ctx = document.getElementById('scatterChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Land',
+                            data: scatterData,
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1,
+                            pointRadius: 5,
+                            pointHoverRadius: 7 // hover
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.raw.label || '';
+                                        const cost = context.raw.cost || 0;
+                                        return `${label}: (GNI/Tag: ${context.raw.x}, Cost: ${cost}, ${context.raw.y.toFixed(2)}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'GNI/Tag(USD)'
+                                },
+                                min: 0, // 设置横轴最小值
+                                max: 200, // 设置横轴最大值
+                                ticks: {
+                                    stepSize: 20 // 设置横轴刻度间距
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Ratio (%)'
+                                },
+                                min: -50, // 设置纵轴最小值
+                                max: 150, // 设置纵轴最大值
+                                ticks: {
+                                    stepSize: 20 // 设置纵轴刻度间距
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('加载 CSV 数据时出错:', error));
+    </script>
+</body>
+</html>

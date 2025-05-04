@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bubble Ratio</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+  <style>body { margin: 0; }</style>
+</head>
+<body>
+<script>
+let table;
+let bubbles = [];
+let margin = { top: 60, bottom: 60, left: 80, right: 120 };
+let gniMin, gniMax, costMin, costMax, ratioMin, ratioMax;
+
+function preload() {
+  table = loadTable("data/data.csv", "csv", "header");
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  colorMode(HSB, 360, 100, 100, 100);
+  textFont('Arial');
+  textSize(12);
+  noStroke();
+  parseData();
+}
+
+function parseData() {
+  bubbles = [];
+
+  gniMin = Infinity; gniMax = -Infinity;
+  costMin = Infinity; costMax = -Infinity;
+  ratioMin = 0; ratioMax = 270;
+
+  for (let r of table.rows) {
+    let gni = parseFloat(r.get("TagGNI"));
+    let cost = parseFloat(r.get("Cost"));
+    let ratio = parseFloat(r.get("Vergleich"));
+    if (gni > 0 && cost > 0 && isFinite(ratio)) {
+      gniMin = Math.min(gniMin, gni);
+      gniMax = Math.max(gniMax, gni);
+      costMin = Math.min(costMin, cost);
+      costMax = Math.max(costMax, cost);
+    }
+  }
+
+  for (let r of table.rows) {
+    let gni = parseFloat(r.get("TagGNI"));
+    let cost = parseFloat(r.get("Cost"));
+    let ratio = parseFloat(r.get("Vergleich"));
+    let country = r.get("Country Name");
+    if (gni > 0 && cost > 0 && isFinite(ratio)) {
+      bubbles.push(new Bubble(gni, cost, ratio, country));
+    }
+  }
+
+  console.log(`insgesamt ${bubbles.length} Länder`);
+}
+
+function draw() {
+  background(255);
+  drawAxes();
+  let hovered = null;
+
+  for (let b of bubbles) {
+    b.updatePos();
+    b.display();
+    if (b.isHovered(mouseX, mouseY)) hovered = b;
+  }
+
+  if (hovered) {
+    fill(0);
+    noStroke();
+    rect(mouseX + 10, mouseY - 50, 200, 60);
+    fill(255);
+    textAlign(LEFT, TOP);
+    text(`${hovered.country}\nGNI: ${hovered.xVal}\nCost: ${hovered.cost}\nRatio: ${nf(hovered.yVal, 1, 1)}%`, mouseX + 14, mouseY - 46);
+  }
+
+  drawColorLegend();
+}
+
+function drawAxes() {
+  stroke(0);
+  strokeWeight(1);
+  line(margin.left, height - margin.bottom, width - margin.right, height - margin.bottom); // X axis
+  line(margin.left, margin.top, margin.left, height - margin.bottom); // Y axis
+
+  fill(0);
+  textAlign(CENTER);
+  text("Einkommen", width / 2, height - 20); // 修改为线性刻度
+  push();
+  translate(20, height / 2);
+  rotate(-HALF_PI);
+  text("Ratio (%)", 0, 0);
+  pop();
+
+  // X轴（线性刻度）
+  let xSteps = 6; // 刻度数量
+  for (let i = 0; i <= xSteps; i++) {
+    let gniVal = (270 / xSteps) * i; // 从 0 到 270 均匀分布
+    let x = map(gniVal, 0, 270, margin.left, width - margin.right);
+    stroke(180);
+    line(x, height - margin.bottom, x, height - margin.bottom + 5);
+    noStroke();
+    fill(0);
+    textAlign(CENTER);
+    text(nf(gniVal, 0, 0), x, height - margin.bottom + 18);
+  }
+
+  // Y轴（Ratio 百分比刻度）
+  let steps = 6;
+  for (let i = 0; i <= steps; i++) {
+    let ratioVal = lerp(ratioMin, ratioMax, i / steps);
+    let y = map(ratioVal, ratioMin, ratioMax, height - margin.bottom, margin.top);
+    stroke(200);
+    line(margin.left - 5, y, margin.left, y);
+    noStroke();
+    fill(0);
+    textAlign(RIGHT, CENTER);
+    text(nf(ratioVal, 0, 0) + "%", margin.left - 8, y);
+  }
+}
+
+class Bubble {
+  constructor(xVal, cost, ratio, country) {
+    this.xVal = xVal;
+    this.cost = cost;
+    this.yVal = ratio;
+    this.country = country;
+    this.updatePos();
+  }
+
+  updatePos() {
+    this.x = map(Math.log(this.xVal), Math.log(gniMin), Math.log(gniMax), margin.left, width - margin.right);
+    this.y = map(this.yVal, ratioMin, ratioMax, height - margin.bottom, margin.top);
+
+    let area = map(this.cost, costMin, costMax, 2, 5000);
+    this.size = Math.sqrt(area / Math.PI) * 2;
+
+    let hue = map(this.cost, costMin, costMax, 200, 360); // color by Cost
+    this.color = color(hue, 80, 90, 30);
+  }
+
+  display() {
+    fill(this.color);
+    noStroke();
+    ellipse(this.x, this.y, this.size);
+  }
+
+  isHovered(mx, my) {
+    return dist(mx, my, this.x, this.y) < this.size / 2;
+  }
+}
+
+function drawColorLegend() {
+  let legendX = width - margin.right + 30;
+  let legendY = margin.top;
+  let legendH = height - margin.top - margin.bottom;
+  let steps = 100;
+
+  noStroke();
+  for (let i = 0; i < steps; i++) {
+    let t = i / steps;
+    let v = lerp(costMin, costMax, 1 - t);
+    let hue = map(v, costMin, costMax, 200, 360);
+    fill(hue, 80, 90);
+    rect(legendX, legendY + t * legendH, 15, legendH / steps);
+  }
+
+  fill(0);
+  textAlign(LEFT, CENTER);
+  text(`${nf(costMax, 1, 1)}`, legendX + 20, legendY);
+  text(`${nf(costMin, 1, 1)}`, legendX + 20, legendY + legendH);
+  text("Cost", legendX - 5, legendY - 10);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+</script>
+</body>
+</html>
