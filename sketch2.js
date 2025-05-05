@@ -10,55 +10,85 @@ function preload() {
 }
 
 function setup() {
-  // 按 TagGNI 降序排列
   sortedRows = [...data.getRows()];
   sortedRows.sort((a, b) => parseFloat(b.get("TagGNI")) - parseFloat(a.get("TagGNI")));
 
-  // 根据国家数量计算横向总宽度
   canvasWidth = sortedRows.length * (barWidth + padding) + padding;
-  createCanvas(canvasWidth, 2000); // 横向画布
-
-  noStroke();
+  createCanvas(canvasWidth, 2500); // 横向画布
+  textSize(12); // 调整文字大小为12
   textAlign(CENTER, TOP);
-  textSize(8);
+  noStroke();
+}
 
-  let baseY = 1400; // 所有条形图的基线高度
+function draw() {
+  background(255); // 清空画布
+
+  let baseY = 1400;
+  let hoveredIndex = -1;
 
   for (let i = 0; i < sortedRows.length; i++) {
     let row = sortedRows[i];
     let country = row.get("Country Name");
-    let cost = float(row.get("Cost"));
-    let tagGNI = float(row.get("TagGNI"));
-    let vergleich = float(row.get("Vergleich")) / 100;
+    let cost = parseFloat(row.get("Cost"));
+    let powcost = Math.pow((cost), 2); // 对 Cost 进行平方处理
+    let tagGNI = parseFloat(row.get("TagGNI"));
+    let sqrtGNI = Math.sqrt(tagGNI);
+    let vergleich = parseFloat(row.get("Vergleich")) / 100;
 
-    let l = map(tagGNI, 0, 250, 0, 1000); // GNI 映射高度
-    let costHeight = (cost, 0, 10, 0, 300); ;
+    // let l = map(tagGNI, 0, 250, 0, 1000);
+    let l = map(sqrtGNI, 0, Math.sqrt(250), 0, 1000); // 使用平方根映射
+    let costHeight = map(powcost, 0, 100, 0, 400); 
     let vergleichHeight = l * vergleich;
 
     let xPos = padding + i * (barWidth + padding);
 
-    // Cost Bar（底部反向）
-    fill(200, 255, 200);
-    rect(xPos, baseY - costHeight, barWidth, costHeight, 4);
+    // 检查鼠标是否悬停在 GNI 主条上
+    if (
+      mouseX >= xPos &&
+      mouseX <= xPos + barWidth &&
+      mouseY >= baseY - l - 5 &&
+      mouseY <= baseY
+    ) {
+      hoveredIndex = i;
+    }
 
-    // GNI 主条
-    fill(200, 100, 255);
-    rect(xPos, baseY - costHeight - l - 5, barWidth, l, 4);
+    // 绘制 Cost
+    fill('lightgreen');
+    rect(xPos, baseY, barWidth, costHeight, 4);
 
-    // 比例小条
-    fill(0, 200, 255);
-    rect(xPos, baseY - costHeight - vergleichHeight - 5, barWidth, vergleichHeight * 0.6, 4);
+    // 绘制 GNI
+    fill('lightblue');
+    rect(xPos, baseY - l - 5, barWidth, l, 4);
 
-    // 国家名
-    fill(0);
-    push();
-    translate(xPos + barWidth / 2, baseY + 5);
-    rotate(PI / 4);
-    text(country, 0, 0);
-    pop();
+    // 绘制 Vergleich
+    fill('red');
+    rect(xPos + 3, baseY - vergleichHeight - 2, barWidth - 6, vergleichHeight, 4);
+
+    // 国家标签
+    // fill(0);
+    // push();
+    // translate(xPos + barWidth / 2, baseY + 5);
+    // rotate(PI / 4);
+    // text(country, 0, 0);
+    // pop();
   }
-}
 
-function draw() {
-  // 静态显示
+  // 如果有悬停，则显示 tooltip
+  if (hoveredIndex !== -1) {
+    let row = sortedRows[hoveredIndex];
+    let country = row.get("Country Name");
+    let cost = parseFloat(row.get("Cost")).toFixed(2);
+    let tagGNI = parseFloat(row.get("TagGNI")).toFixed(2);
+    let vergleich = parseFloat(row.get("Vergleich")).toFixed(1);
+
+    fill(255);
+    stroke(0);
+    strokeWeight(0.5);
+    rect(mouseX + 10, mouseY, 300, 120, 5); // 调整宽度为160，高度为80
+    noStroke();
+    fill(0);
+    textAlign(LEFT, TOP);
+    textSize(20); // 调整 tooltip 的文字大小为10
+    text(`Country: ${country}\nTagGNI: ${tagGNI}\nCost: ${cost}\nVergleich: ${vergleich}%`, mouseX + 15, mouseY + 10); // 调整文字位置
+  }
 }
