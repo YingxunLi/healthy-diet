@@ -1,9 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bar</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+  <style>body { margin: 0; }</style>
+</head>
+<body>
+<button id="toggleLength" style="position: fixed; top: 10px; left: 10px; z-index: 100;">Toggle Uniform Length</button>
+<script>
 let data;
 let barWidth = 10;
 let padding = 10;
 let canvasWidth;
 
 let sortedRows = [];
+let uniformLength = false; // 用于切换统一长度的状态
+let originalLengths = []; // 保存原始的 l 值
 
 function preload() {
   data = loadTable('data/data.csv', 'csv', 'header');
@@ -18,6 +31,17 @@ function setup() {
   textSize(12); // 调整文字大小为12
   textAlign(CENTER, TOP);
   noStroke();
+
+  // 保存原始的 l 值
+  originalLengths = sortedRows.map(row => {
+    let tagGNI = parseFloat(row.get("TagGNI"));
+    return map(Math.sqrt(tagGNI), 0, Math.sqrt(250) / 2, 0, 500);
+  });
+
+  // 添加按钮点击事件
+  document.getElementById('toggleLength').addEventListener('click', () => {
+    uniformLength = !uniformLength;
+  });
 }
 
 function draw() {
@@ -30,14 +54,11 @@ function draw() {
     let row = sortedRows[i];
     let country = row.get("Country Name");
     let cost = parseFloat(row.get("Cost"));
-    let powcost = Math.pow((cost), 2); // 对 Cost 进行平方处理
-    let tagGNI = parseFloat(row.get("TagGNI"));
-    let sqrtGNI = Math.sqrt(tagGNI);
+    let powcost = Math.pow((cost), 2); // Quadratische Kosten
     let vergleich = parseFloat(row.get("Vergleich")) / 100;
 
-    // let l = map(tagGNI, 0, 250, 0, 1000);
-    let l = map(sqrtGNI, 0, Math.sqrt(250), 0, 1000); // 使用平方根映射
-    let costHeight = map(powcost, 0, 100, 0, 400); 
+    let l = uniformLength ? 500 : originalLengths[i]; // 如果统一长度，则使用固定值300
+    let costHeight = map(powcost, 0, 100, 0, 2000); 
     let vergleichHeight = l * vergleich;
 
     let xPos = padding + i * (barWidth + padding);
@@ -63,14 +84,6 @@ function draw() {
     // 绘制 Vergleich
     fill('red');
     rect(xPos + 3, baseY - vergleichHeight - 2, barWidth - 6, vergleichHeight, 4);
-
-    // 国家标签
-    // fill(0);
-    // push();
-    // translate(xPos + barWidth / 2, baseY + 5);
-    // rotate(PI / 4);
-    // text(country, 0, 0);
-    // pop();
   }
 
   // 如果有悬停，则显示 tooltip
@@ -92,3 +105,7 @@ function draw() {
     text(`Country: ${country}\nTagGNI: ${tagGNI}\nCost: ${cost}\nVergleich: ${vergleich}%`, mouseX + 15, mouseY + 10); // 调整文字位置
   }
 }
+
+</script>
+</body>
+</html>
